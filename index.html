@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LibertyChat - Teste Offline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700">
+        <h1 class="text-2xl font-bold mb-4 text-blue-400 text-center">LibertyChat 🗽</h1>
+        <p class="text-sm text-slate-400 mb-6 text-center">Teste de Compatibilidade Offline (Phi 3.5)</p>
+
+        <div id="status-container" class="space-y-4">
+            <div class="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                <span>Suporte WebGPU:</span>
+                <span id="webgpu-status" class="font-bold">Verificando...</span>
+            </div>
+
+            <div id="progress-box" class="hidden">
+                <div class="flex justify-between text-xs mb-1">
+                    <span>Baixando Modelo...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div class="w-full bg-slate-700 rounded-full h-2">
+                    <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <p id="status-text" class="text-[10px] mt-2 text-slate-500 italic"></p>
+            </div>
+
+            <button id="start-btn" class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
+                Iniciar Teste de IA
+            </button>
+        </div>
+
+        <div id="chat-box" class="mt-6 hidden">
+            <div id="output" class="text-sm bg-slate-900 p-4 rounded-lg border border-slate-700 min-h-[100px] whitespace-pre-wrap text-slate-300"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Importando a biblioteca WebLLM diretamente via CDN
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+        const webgpuStatus = document.getElementById('webgpu-status');
+        const startBtn = document.getElementById('start-btn');
+        const progressBox = document.getElementById('progress-box');
+        const progressBar = document.getElementById('progress-bar');
+        const progressPercent = document.getElementById('progress-percent');
+        const statusText = document.getElementById('status-text');
+        const output = document.getElementById('output');
+        const chatBox = document.getElementById('chat-box');
+
+        // 1. Verificar suporte ao WebGPU
+        if (navigator.gpu) {
+            webgpuStatus.innerText = "✅ Disponível";
+            webgpuStatus.classList.add('text-green-400');
+        } else {
+            webgpuStatus.innerText = "❌ Incompatível";
+            webgpuStatus.classList.add('text-red-400');
+            statusText.innerText = "Dica: No iPhone, ative o WebGPU nos ajustes do Safari.";
+        }
+
+        startBtn.onclick = async () => {
+            startBtn.disabled = true;
+            progressBox.classList.remove('hidden');
+            
+            try {
+                const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
+                
+                // 2. Inicializar o Engine
+                const engine = await webllm.CreateMLCEngine(selectedModel, {
+                    initProgressCallback: (report) => {
+                        const progress = Math.round(report.progress * 100);
+                        progressBar.style.width = `${progress}%`;
+                        progressPercent.innerText = `${progress}%`;
+                        statusText.innerText = report.text;
+                    }
+                });
+
+                // 3. Testar Resposta
+                chatBox.classList.remove('hidden');
+                output.innerText = "IA pensando...";
+
+                const messages = [{ role: "user", content: "Olá! Você está rodando offline?" }];
+                
+                const chunks = await engine.chat.completions.create({
+                    messages: messages,
+                    stream: true
+                });
+
+                let fullResponse = "";
+                for await (const chunk of chunks) {
+                    const content = chunk.choices[0]?.delta?.content || "";
+                    fullResponse += content;
+                    output.innerText = fullResponse;
+                }
+
+            } catch (err) {
+                console.error(err);
+                output.innerText = "Erro: " + err.message;
+            }
+        };
+    </script>
+</body>
+</html>
+
