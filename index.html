@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LibertyChat - Teste Offline (Transformers.js)</title>
+    <title>LibertyChat - Teste Offline Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col items-center justify-center p-6">
 
     <div class="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700">
         <h1 class="text-2xl font-bold mb-4 text-blue-400 text-center">LibertyChat 🗽</h1>
-        <p class="text-sm text-slate-400 mb-6 text-center">Teste de Compatibilidade Offline (SmolLM2 135M)</p>
+        <p class="text-sm text-slate-400 mb-6 text-center">Teste de IA Offline (SmolLM2 135M)</p>
 
         <div id="status-container" class="space-y-4">
             <div class="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
                 <span>Motor Gráfico:</span>
-                <span id="webgpu-status" class="font-bold">Verificando...</span>
+                <span id="webgpu-status" class="font-bold text-slate-400">Verificando...</span>
             </div>
 
             <div id="progress-box" class="hidden">
                 <div class="flex justify-between text-xs mb-1">
-                    <span>Baixando Modelo...</span>
+                    <span>Baixando/Carregando IA...</span>
                     <span id="progress-percent">0%</span>
                 </div>
                 <div class="w-full bg-slate-700 rounded-full h-2">
@@ -40,12 +40,7 @@
     </div>
 
     <script type="module">
-        // 1. Importando a biblioteca Transformers.js (v3) via CDN
-        import { pipeline, env } from "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0";
-
-        // Desativar a busca por arquivos locais, obrigando a baixar do Hugging Face Hub
-        env.allowLocalModels = false;
-
+        // 1. Conecta os elementos da tela IMEDIATAMENTE
         const webgpuStatus = document.getElementById('webgpu-status');
         const startBtn = document.getElementById('start-btn');
         const progressBox = document.getElementById('progress-box');
@@ -55,70 +50,72 @@
         const output = document.getElementById('output');
         const chatBox = document.getElementById('chat-box');
 
-        let deviceType = "wasm"; // Fallback seguro (Processador/CPU)
+        let deviceType = "wasm";
 
-        // 2. Verificar suporte ao WebGPU
+        // 2. Verifica a GPU instantaneamente ao abrir a página
         if (navigator.gpu) {
-            webgpuStatus.innerText = "✅ WebGPU (Placa de Vídeo)";
-            webgpuStatus.classList.add('text-green-400');
+            webgpuStatus.innerText = "✅ WebGPU (Adreno/Placa)";
+            webgpuStatus.className = "font-bold text-green-400";
             deviceType = "webgpu";
         } else {
             webgpuStatus.innerText = "⚠️ WASM (Processador)";
-            webgpuStatus.classList.add('text-yellow-400');
+            webgpuStatus.className = "font-bold text-yellow-400";
         }
 
+        // 3. Lógica do clique: Importa e roda a IA
         startBtn.onclick = async () => {
             startBtn.disabled = true;
             progressBox.classList.remove('hidden');
+            statusText.innerText = "Conectando à biblioteca Transformers.js...";
             
             try {
-                // Modelo ultra-leve da Hugging Face
+                // IMPORTAÇÃO DINÂMICA: O "+esm" no final é vital para não quebrar o script no celular [1]
+                const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm");
+                
+                env.allowLocalModels = false;
                 const modelName = "HuggingFaceTB/SmolLM2-135M-Instruct";
                 
-                statusText.innerText = "Inicializando Transformers.js...";
+                statusText.innerText = "Iniciando motor ONNX Runtime Web...";
 
-                // 3. Inicializar o Pipeline (Faz o download e cache automático)
                 const generator = await pipeline("text-generation", modelName, {
                     device: deviceType,
-                    dtype: "q4", // Quantização em 4-bits para consumir o mínimo de RAM
+                    dtype: "q4",
                     progress_callback: (data) => {
-                        if (data.status === 'downloading' |
-
-| data.status === 'progress') {
-                            const prog = Math.round(data.progress |
-
-| 0);
+                        if (['downloading', 'progress'].includes(data.status)) {
+                            const prog = Math.round(data.progress? data.progress : 0);
                             progressBar.style.width = `${prog}%`;
                             progressPercent.innerText = `${prog}%`;
-                            statusText.innerText = `Baixando: ${data.file |
-
-| "arquivos..."}`;
+                            
+                            const fileName = data.file? data.file : "arquivos...";
+                            statusText.innerText = `Baixando: ${fileName}`;
                         } else if (data.status === 'ready') {
                             progressBar.style.width = `100%`;
                             progressPercent.innerText = `100%`;
-                            statusText.innerText = "Modelo pronto! Carregando na memória...";
+                            statusText.innerText = "Modelo montado! Preparando chat...";
                         }
                     }
                 });
 
-                // 4. Interface visual de Chat
                 chatBox.classList.remove('hidden');
-                output.innerText = "IA pensando... (A primeira resposta demora alguns segundos)";
+                output.innerText = "IA pensando... (O primeiro prompt demora uns segundos a mais)";
 
-                const messages = [
-                    { role: "system", content: "Você é o assistente inteligente do LibertyChat." },
-                    { role: "user", content: "Olá! Como você está funcionando offline?" }
-                ];
+                const messages =;
                 
-                // 5. Gerar a Resposta
                 const response = await generator(messages, {
-                    max_new_tokens: 60,
-                    temperature: 0.3,
-                    do_sample: true
+                    max_new_tokens: 50,
+                    temperature: 0.1,
+                    do_sample: false
                 });
 
-                // Extrair a última mensagem gerada pela IA
-                output.innerText = response.generated_text.at(-1).content;
+                // Tenta extrair a resposta de forma segura
+                let finalResposta = "";
+                if (Array.isArray(response) && response.generated_text) {
+                    finalResposta = response.generated_text.at(-1).content;
+                } else {
+                    finalResposta = JSON.stringify(response);
+                }
+                
+                output.innerText = finalResposta;
 
             } catch (err) {
                 console.error(err);
