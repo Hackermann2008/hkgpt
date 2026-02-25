@@ -16,10 +16,6 @@
             --muted: #4b5e7a;
             --user-bubble: #1d3557;
             --ai-bubble: #162032;
-            --green: #22c55e;
-            --yellow: #eab308;
-            --red: #ef4444;
-            /* FIX: fontes do sistema — sem requisição de rede extra */
             --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             --font-mono: 'Courier New', ui-monospace, monospace;
         }
@@ -45,7 +41,6 @@
             padding: 14px 20px;
             background: var(--surface);
             border-bottom: 1px solid var(--border);
-            gap: 12px;
         }
 
         .header-title {
@@ -53,7 +48,6 @@
             font-size: 16px;
             font-weight: 700;
             color: var(--accent2);
-            letter-spacing: -0.5px;
         }
 
         #engine-badge {
@@ -64,10 +58,9 @@
             background: var(--surface2);
             border: 1px solid var(--border);
             color: var(--muted);
-            white-space: nowrap;
         }
 
-        /* ── Loading overlay ── */
+        /* ── Loading ── */
         #loading-screen {
             position: fixed;
             inset: 0;
@@ -78,19 +71,13 @@
             align-items: center;
             justify-content: center;
             padding: 32px;
-            gap: 24px;
+            gap: 20px;
             transition: opacity 0.4s ease;
         }
 
-        #loading-screen.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
+        #loading-screen.hidden { opacity: 0; pointer-events: none; }
 
-        .logo-big {
-            font-size: 48px;
-            animation: pulse 2s infinite;
-        }
+        .logo-big { font-size: 52px; animation: pulse 2s infinite; }
 
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
@@ -109,12 +96,10 @@
             color: var(--muted);
             text-align: center;
             line-height: 1.6;
+            max-width: 280px;
         }
 
-        .progress-wrap {
-            width: 100%;
-            max-width: 320px;
-        }
+        .progress-wrap { width: 100%; max-width: 320px; display: none; }
 
         .progress-top {
             display: flex;
@@ -150,7 +135,6 @@
         }
 
         #start-btn {
-            margin-top: 8px;
             padding: 14px 32px;
             background: var(--accent);
             color: #fff;
@@ -166,11 +150,7 @@
         }
 
         #start-btn:active { transform: scale(0.98); }
-        #start-btn:disabled {
-            background: var(--surface2);
-            color: var(--muted);
-            cursor: not-allowed;
-        }
+        #start-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
 
         /* ── Messages ── */
         #messages {
@@ -184,17 +164,16 @@
         }
 
         #messages::-webkit-scrollbar { width: 4px; }
-        #messages::-webkit-scrollbar-track { background: transparent; }
         #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
         .msg-row {
             display: flex;
             gap: 10px;
-            animation: slideIn 0.25s ease;
+            animation: slideIn 0.2s ease;
         }
 
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(8px); }
+            from { opacity: 0; transform: translateY(6px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
@@ -225,7 +204,7 @@
             word-break: break-word;
         }
 
-        .bubble.ai  {
+        .bubble.ai {
             background: var(--ai-bubble);
             border: 1px solid var(--border);
             border-top-left-radius: 4px;
@@ -239,25 +218,19 @@
             color: #bfdbfe;
         }
 
-        /* typing dots */
-        .typing-dot {
+        /* Cursor piscando durante streaming */
+        .bubble.streaming::after {
+            content: '▋';
             display: inline-block;
-            width: 6px; height: 6px;
-            background: var(--muted);
-            border-radius: 50%;
-            margin: 0 2px;
-            animation: blink 1.2s infinite;
+            color: var(--accent);
+            animation: blink-cursor 0.7s infinite;
         }
 
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes blink {
-            0%, 80%, 100% { opacity: 0.2; }
-            40% { opacity: 1; }
+        @keyframes blink-cursor {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0; }
         }
 
-        /* empty state */
         .empty-state {
             flex: 1;
             display: flex;
@@ -272,6 +245,28 @@
         }
 
         .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+
+        /* ── Suggestions ── */
+        .suggestions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 0 16px 10px;
+            flex-shrink: 0;
+        }
+
+        .suggestion-chip {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+        }
+
+        .suggestion-chip:active { border-color: var(--accent); color: var(--accent2); }
 
         /* ── Input bar ── */
         #input-bar {
@@ -319,45 +314,19 @@
             transition: background 0.2s, transform 0.1s;
         }
 
-        #send-btn:active { transform: scale(0.93); }
+        #send-btn:active   { transform: scale(0.93); }
         #send-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
-
-        /* ── Suggestions ── */
-        .suggestions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            padding: 0 16px 10px;
-            flex-shrink: 0;
-        }
-
-        .suggestion-chip {
-            background: var(--surface2);
-            border: 1px solid var(--border);
-            color: var(--muted);
-            font-size: 12px;
-            padding: 6px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: border-color 0.2s, color 0.2s;
-            white-space: nowrap;
-        }
-
-        .suggestion-chip:hover, .suggestion-chip:active {
-            border-color: var(--accent);
-            color: var(--accent2);
-        }
     </style>
 </head>
 <body>
 
-<!-- ══ LOADING SCREEN ══ -->
+<!-- ══ LOADING ══ -->
 <div id="loading-screen">
     <div class="logo-big">🗽</div>
     <div class="loading-title">LibertyChat</div>
     <div class="loading-subtitle">IA 100% offline no seu dispositivo.<br>SmolLM2 135M · WASM · sem servidor.</div>
 
-    <div class="progress-wrap" id="progress-wrap" style="display:none">
+    <div class="progress-wrap" id="progress-wrap">
         <div class="progress-top">
             <span>Carregando modelo...</span>
             <span id="prog-pct">0%</span>
@@ -390,9 +359,9 @@
 
 <div class="suggestions" id="suggestions">
     <div class="suggestion-chip">O que é IA?</div>
-    <div class="suggestion-chip">Escreva um poema curto</div>
     <div class="suggestion-chip">Piada engraçada</div>
     <div class="suggestion-chip">Dica de produtividade</div>
+    <div class="suggestion-chip">Explique buraco negro</div>
 </div>
 
 <div id="input-bar">
@@ -410,38 +379,35 @@
     const progLabel     = document.getElementById('prog-label');
     const engineBadge   = document.getElementById('engine-badge');
     const messagesEl    = document.getElementById('messages');
-    const emptyState    = document.getElementById('empty-state');
     const suggestionsEl = document.getElementById('suggestions');
     const userInput     = document.getElementById('user-input');
     const sendBtn       = document.getElementById('send-btn');
 
     // ── Estado ───────────────────────────────────────────────────────────────
     let generator    = null;
+    let TextStreamer  = null;
     let isGenerating = false;
     let fileProgress = {};
 
-    // FIX: system prompt em português explícito — modelos pequenos ignoram "reply in same language"
+    // System prompt direto em PT-BR — modelo pequeno não infere idioma sozinho
     const SYSTEM_MSG = {
         role: "system",
-        content: "Você é o LibertyChat, um assistente de IA simpático e prestativo. SEMPRE responda em português brasileiro, independente do idioma da pergunta. Seja direto e conciso."
+        content: "Você é o LibertyChat, assistente prestativo. Responda SEMPRE em português brasileiro. Seja objetivo e não invente informações que não sabe."
     };
 
-    // Histórico de turnos (sem o system, que é injetado separado)
-    // FIX: limitamos a 6 mensagens (3 turnos) para não sobrecarregar o WASM no mobile
-    const MAX_HISTORY_TURNS = 3;
-    const turns = []; // [{role:"user",...}, {role:"assistant",...}, ...]
+    // Histórico limitado a 3 turnos — evita sobrecarga no WASM mobile
+    const MAX_TURNS = 3;
+    const turns = [];
 
-    function buildMessages(newUserText) {
-        // Monta: [system] + últimos N turnos + nova mensagem do usuário
-        const recent = turns.slice(-(MAX_HISTORY_TURNS * 2));
-        return [SYSTEM_MSG, ...recent, { role: "user", content: newUserText }];
+    function buildMessages(userText) {
+        const recent = turns.slice(-(MAX_TURNS * 2));
+        return [SYSTEM_MSG, ...recent, { role: "user", content: userText }];
     }
 
-    // ── Motor ────────────────────────────────────────────────────────────────
-    const isMobile  = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    const hasWebGPU = !!navigator.gpu && !isMobile;
+    // ── Detecção de plataforma ───────────────────────────────────────────────
+    const isMobile   = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const hasWebGPU  = !!navigator.gpu && !isMobile;
     const deviceType = hasWebGPU ? "webgpu" : "wasm";
-
     engineBadge.textContent = hasWebGPU ? "WebGPU · offline" : "WASM · offline";
 
     // ── Progresso ────────────────────────────────────────────────────────────
@@ -452,29 +418,32 @@
     }
 
     function setProgress(pct, label) {
-        progBar.style.width = `${pct}%`;
-        progPct.textContent  = `${pct}%`;
+        progBar.style.width   = `${pct}%`;
+        progPct.textContent   = `${pct}%`;
         progLabel.textContent = label;
     }
 
     // ── Carregar modelo ──────────────────────────────────────────────────────
     startBtn.onclick = async () => {
-        startBtn.disabled = true;
+        startBtn.disabled      = true;
         progWrap.style.display = 'block';
-        fileProgress = {};
+        fileProgress           = {};
         setProgress(0, "Conectando à biblioteca...");
 
         try {
-            const { pipeline, env } = await import(
+            const lib = await import(
                 "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm"
             );
 
-            env.allowLocalModels = false;
-            env.useBrowserCache  = true;
+            // Guarda TextStreamer para usar no chat
+            TextStreamer = lib.TextStreamer;
+
+            lib.env.allowLocalModels = false;
+            lib.env.useBrowserCache  = true;
 
             setProgress(1, "Iniciando ONNX Runtime...");
 
-            generator = await pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
+            generator = await lib.pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
                 device: deviceType,
                 dtype:  "q4",
                 progress_callback: (data) => {
@@ -494,7 +463,6 @@
                 }
             });
 
-            // Oculta loading, mostra chat
             loadingScreen.classList.add('hidden');
             setTimeout(() => loadingScreen.style.display = 'none', 400);
             userInput.disabled = false;
@@ -504,28 +472,23 @@
         } catch (err) {
             console.error(err);
             progLabel.textContent = "❌ Erro: " + err.message;
-            startBtn.disabled = false;
-            startBtn.textContent = "Tentar novamente";
+            startBtn.disabled     = false;
+            startBtn.textContent  = "Tentar novamente";
         }
     };
 
-    // ── Auto-resize do textarea ──────────────────────────────────────────────
+    // ── Auto-resize textarea ─────────────────────────────────────────────────
     userInput.addEventListener('input', () => {
         userInput.style.height = 'auto';
         userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
     });
 
-    // ── Send com Enter (Shift+Enter = quebra linha) ──────────────────────────
     userInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-        }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
     });
 
     sendBtn.onclick = handleSend;
 
-    // ── Sugestões ────────────────────────────────────────────────────────────
     document.querySelectorAll('.suggestion-chip').forEach(chip => {
         chip.addEventListener('click', () => {
             if (!generator || isGenerating) return;
@@ -534,106 +497,89 @@
         });
     });
 
-    // ── Renderização de mensagens ─────────────────────────────────────────────
-    function addMessage(role, content) {
-        emptyState?.remove();
+    // ── Helpers de UI ────────────────────────────────────────────────────────
+    function addMessage(role, content = '') {
+        document.getElementById('empty-state')?.remove();
         suggestionsEl.style.display = 'none';
 
         const row = document.createElement('div');
         row.className = `msg-row ${role === 'user' ? 'user' : 'ai'}`;
 
         const avatar = document.createElement('div');
-        avatar.className = `avatar ${role === 'user' ? 'usr' : 'ai'}`;
+        avatar.className   = `avatar ${role === 'user' ? 'usr' : 'ai'}`;
         avatar.textContent = role === 'user' ? '👤' : '🤖';
 
         const bubble = document.createElement('div');
-        bubble.className = `bubble ${role === 'user' ? 'user' : 'ai'}`;
+        bubble.className   = `bubble ${role === 'user' ? 'user' : 'ai'}`;
         bubble.textContent = content;
 
         row.append(avatar, bubble);
         messagesEl.appendChild(row);
         messagesEl.scrollTop = messagesEl.scrollHeight;
 
-        return bubble; // retorna para poder atualizar (streaming futuro)
+        return bubble;
     }
 
-    function addTypingIndicator() {
-        emptyState?.remove();
-        const row = document.createElement('div');
-        row.className = 'msg-row ai';
-        row.id = 'typing-row';
-
-        const avatar = document.createElement('div');
-        avatar.className = 'avatar ai';
-        avatar.textContent = '🤖';
-
-        const bubble = document.createElement('div');
-        bubble.className = 'bubble ai';
-        bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
-
-        row.append(avatar, bubble);
-        messagesEl.appendChild(row);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    function removeTypingIndicator() {
-        document.getElementById('typing-row')?.remove();
-    }
-
-    // ── Core: enviar mensagem ────────────────────────────────────────────────
+    // ── Core: enviar + stream token a token ─────────────────────────────────
     async function handleSend() {
         if (!generator || isGenerating) return;
         const text = userInput.value.trim();
         if (!text) return;
 
-        isGenerating = true;
-        userInput.value = '';
+        isGenerating           = true;
+        userInput.value        = '';
         userInput.style.height = 'auto';
-        sendBtn.disabled   = true;
-        userInput.disabled = true;
+        sendBtn.disabled       = true;
+        userInput.disabled     = true;
 
         addMessage('user', text);
-        addTypingIndicator();
 
-        // FIX: monta janela de contexto limitada (não cresce infinitamente)
-        const messages = buildMessages(text);
+        // Bolha da IA vazia com cursor piscando desde o início
+        const aiBubble = addMessage('assistant', '');
+        aiBubble.classList.add('streaming');
+
+        let accumulated = '';
+
+        // TextStreamer: entrega tokens individuais conforme são gerados
+        const streamer = new TextStreamer(generator.tokenizer, {
+            skip_prompt:         true,  // omite o prompt de entrada na saída
+            skip_special_tokens: true,  // remove tokens como <|im_end|>
+            callback_function: (token) => {
+                accumulated += token;
+                aiBubble.textContent = accumulated;
+                messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+        });
 
         try {
-            const response = await generator(messages, {
-                max_new_tokens: 150,   // FIX: reduzido de 200 → menos pesado no WASM mobile
-                temperature: 0.7,
-                do_sample: true,
-                repetition_penalty: 1.1
+            // Anti-alucinação:
+            //   do_sample: false      → greedy decoding, sem aleatoriedade
+            //   repetition_penalty    → penaliza repetir tokens já gerados
+            //   max_new_tokens: 120   → resposta curta = menos deriva
+            await generator(buildMessages(text), {
+                max_new_tokens:     120,
+                do_sample:          false,
+                repetition_penalty: 1.3,
+                streamer
             });
 
-            removeTypingIndicator();
+            aiBubble.classList.remove('streaming');
 
-            // Extrai resposta do assistente
-            let reply = "";
-            try {
-                const generated = response?.[0]?.generated_text;
-                if (Array.isArray(generated)) {
-                    const last = [...generated].reverse().find(m => m.role === "assistant");
-                    reply = last?.content ?? JSON.stringify(generated);
-                } else {
-                    reply = String(generated ?? JSON.stringify(response));
-                }
-            } catch {
-                reply = JSON.stringify(response, null, 2);
+            if (!accumulated.trim()) {
+                aiBubble.textContent = "(sem resposta gerada)";
             }
 
-            // FIX: salva no histórico de turnos (sem o system, que é injetado em buildMessages)
-            turns.push({ role: "user",      content: text  });
-            turns.push({ role: "assistant", content: reply });
-
-            addMessage('assistant', reply);
+            if (accumulated.trim()) {
+                turns.push({ role: "user",      content: text        });
+                turns.push({ role: "assistant", content: accumulated });
+            }
 
         } catch (err) {
-            removeTypingIndicator();
-            addMessage('assistant', "❌ Erro ao gerar resposta: " + err.message);
+            aiBubble.classList.remove('streaming');
+            aiBubble.textContent = "❌ Erro: " + err.message;
             console.error(err);
         } finally {
-            isGenerating = false;
+            isGenerating       = false;
             sendBtn.disabled   = false;
             userInput.disabled = false;
             userInput.focus();
