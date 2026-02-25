@@ -40,18 +40,19 @@
     </div>
 
     <script type="module">
-        const webgpuStatus   = document.getElementById('webgpu-status');
-        const startBtn       = document.getElementById('start-btn');
-        const progressBox    = document.getElementById('progress-box');
-        const progressBar    = document.getElementById('progress-bar');
+        const webgpuStatus    = document.getElementById('webgpu-status');
+        const startBtn        = document.getElementById('start-btn');
+        const progressBox     = document.getElementById('progress-box');
+        const progressBar     = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
-        const statusText     = document.getElementById('status-text');
-        const output         = document.getElementById('output');
-        const chatBox        = document.getElementById('chat-box');
+        const statusText      = document.getElementById('status-text');
+        const output          = document.getElementById('output');
+        const chatBox         = document.getElementById('chat-box');
 
-        // ── Detecta plataforma ──────────────────────────────────────────────
-        // WebGPU no Android (Snapdragon Adreno) ainda é instável em muitos builds
-        // do Chrome; usamos WASM por padrão no mobile para evitar travamentos.
+        // ── FIX: fileProgress no escopo do módulo para calcGlobalProgress acessar ──
+        let fileProgress = {};
+
+        // ── Detecta plataforma ───────────────────────────────────────────────────
         const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
         const hasWebGPU = !!navigator.gpu && !isMobile;
 
@@ -68,16 +69,25 @@
 
         const deviceType = hasWebGPU ? "webgpu" : "wasm";
 
-        // ── Helpers ─────────────────────────────────────────────────────────
+        // ── Helpers ──────────────────────────────────────────────────────────────
         function setProgress(pct, label) {
             progressBar.style.width = `${pct}%`;
             progressPercent.innerText = `${pct}%`;
             statusText.innerText = label;
         }
 
-        // ── Clique no botão ──────────────────────────────────────────────────
+        // FIX: função agora acessa fileProgress do escopo correto (módulo)
+        function calcGlobalProgress() {
+            const values = Object.values(fileProgress);
+            if (!values.length) return 1;
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            return Math.min(Math.round(avg), 99);
+        }
+
+        // ── Clique no botão ──────────────────────────────────────────────────────
         startBtn.onclick = async () => {
             startBtn.disabled = true;
+            fileProgress = {}; // reseta a cada tentativa
             progressBox.classList.remove('hidden');
             chatBox.classList.add('hidden');
             setProgress(0, "Conectando à biblioteca Transformers.js...");
@@ -88,16 +98,11 @@
                 );
 
                 env.allowLocalModels = false;
-
-                // Cache no IndexedDB: na 2ª execução o modelo já está salvo localmente
-                env.useBrowserCache = true;
+                env.useBrowserCache  = true; // cache no IndexedDB: 2ª vez é instantâneo
 
                 const modelName = "HuggingFaceTB/SmolLM2-135M-Instruct";
 
                 setProgress(1, "Iniciando motor ONNX Runtime Web...");
-
-                // Mapa de arquivos já baixados para calcular progresso global
-                const fileProgress = {};
 
                 const generator = await pipeline("text-generation", modelName, {
                     device: deviceType,
@@ -106,10 +111,8 @@
                         const file = data.file ?? "modelo";
 
                         if (data.status === "initiate") {
-                            // Arquivo começou a ser preparado
                             fileProgress[file] = 0;
-                            const label = `Iniciando: ${file}`;
-                            setProgress(calcGlobalProgress(), label);
+                            setProgress(calcGlobalProgress(), `Iniciando: ${file}`);
 
                         } else if (data.status === "download") {
                             fileProgress[file] = 0;
@@ -117,29 +120,27 @@
 
                         } else if (data.status === "progress") {
                             fileProgress[file] = data.progress ?? 0;
-                            const global = calcGlobalProgress();
-                            setProgress(global, `Baixando: ${file} (${Math.round(data.progress ?? 0)}%)`);
+                            const pct = Math.round(data.progress ?? 0);
+                            setProgress(calcGlobalProgress(), `Baixando: ${file} (${pct}%)`);
 
                         } else if (data.status === "done") {
                             fileProgress[file] = 100;
                             setProgress(calcGlobalProgress(), `✔ Concluído: ${file}`);
 
                         } else if (data.status === "ready") {
-                            // Modelo totalmente montado — este é o passo que "travava" antes
                             setProgress(100, "✅ Modelo pronto! Gerando resposta...");
                         }
                     }
                 });
 
-                // ── Prompt de teste ────────────────────────────────────────
-                // FIX: array de mensagens estava vazio/ausente no original
+                // ── Prompt de teste ──────────────────────────────────────────────
                 const messages = [
                     { role: "system", content: "You are a helpful assistant. Reply concisely." },
                     { role: "user",   content: "What is 2 + 2? Answer in one sentence." }
                 ];
 
                 chatBox.classList.remove('hidden');
-                output.innerText = "⏳ IA pensando... (primeiros tokens podem demorar um pouco)";
+                output.innerText = "⏳ IA pensando...";
 
                 const response = await generator(messages, {
                     max_new_tokens: 60,
@@ -147,13 +148,11 @@
                     do_sample: false
                 });
 
-                // ── Extração segura da resposta ────────────────────────────
-                // FIX: a resposta vem como response[0].generated_text (array de msgs)
+                // ── Extração segura da resposta ──────────────────────────────────
                 let finalResposta = "";
                 try {
                     const generated = response?.[0]?.generated_text;
                     if (Array.isArray(generated)) {
-                        // Formato chat: pega o último item com role "assistant"
                         const assistantMsg = [...generated].reverse()
                             .find(m => m.role === "assistant");
                         finalResposta = assistantMsg?.content ?? JSON.stringify(generated);
@@ -178,16 +177,6 @@
                 progressBox.classList.add('hidden');
             }
         };
-
-        // Calcula média do progresso de todos os arquivos conhecidos
-        function calcGlobalProgress() {
-            // fileProgress é capturado por closure acima
-            const values = Object.values(fileProgress ?? {});
-            if (!values.length) return 1;
-            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-            // Limita a 99% até o status "ready" confirmar
-            return Math.min(Math.round(avg), 99);
-        }
     </script>
 </body>
 </html>
