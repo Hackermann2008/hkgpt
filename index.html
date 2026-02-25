@@ -40,91 +40,154 @@
     </div>
 
     <script type="module">
-        // 1. Conecta os elementos da tela IMEDIATAMENTE
-        const webgpuStatus = document.getElementById('webgpu-status');
-        const startBtn = document.getElementById('start-btn');
-        const progressBox = document.getElementById('progress-box');
-        const progressBar = document.getElementById('progress-bar');
+        const webgpuStatus   = document.getElementById('webgpu-status');
+        const startBtn       = document.getElementById('start-btn');
+        const progressBox    = document.getElementById('progress-box');
+        const progressBar    = document.getElementById('progress-bar');
         const progressPercent = document.getElementById('progress-percent');
-        const statusText = document.getElementById('status-text');
-        const output = document.getElementById('output');
-        const chatBox = document.getElementById('chat-box');
+        const statusText     = document.getElementById('status-text');
+        const output         = document.getElementById('output');
+        const chatBox        = document.getElementById('chat-box');
 
-        let deviceType = "wasm";
+        // ── Detecta plataforma ──────────────────────────────────────────────
+        // WebGPU no Android (Snapdragon Adreno) ainda é instável em muitos builds
+        // do Chrome; usamos WASM por padrão no mobile para evitar travamentos.
+        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
+        const hasWebGPU = !!navigator.gpu && !isMobile;
 
-        // 2. Verifica a GPU instantaneamente ao abrir a página
-        if (navigator.gpu) {
-            webgpuStatus.innerText = "✅ WebGPU (Adreno/Placa)";
+        if (hasWebGPU) {
+            webgpuStatus.innerText = "✅ WebGPU (GPU)";
             webgpuStatus.className = "font-bold text-green-400";
-            deviceType = "webgpu";
+        } else if (navigator.gpu && isMobile) {
+            webgpuStatus.innerText = "⚠️ WASM (GPU instável no mobile)";
+            webgpuStatus.className = "font-bold text-yellow-400";
         } else {
-            webgpuStatus.innerText = "⚠️ WASM (Processador)";
+            webgpuStatus.innerText = "⚠️ WASM (CPU)";
             webgpuStatus.className = "font-bold text-yellow-400";
         }
 
-        // 3. Lógica do clique: Importa e roda a IA
+        const deviceType = hasWebGPU ? "webgpu" : "wasm";
+
+        // ── Helpers ─────────────────────────────────────────────────────────
+        function setProgress(pct, label) {
+            progressBar.style.width = `${pct}%`;
+            progressPercent.innerText = `${pct}%`;
+            statusText.innerText = label;
+        }
+
+        // ── Clique no botão ──────────────────────────────────────────────────
         startBtn.onclick = async () => {
             startBtn.disabled = true;
             progressBox.classList.remove('hidden');
-            statusText.innerText = "Conectando à biblioteca Transformers.js...";
-            
+            chatBox.classList.add('hidden');
+            setProgress(0, "Conectando à biblioteca Transformers.js...");
+
             try {
-                // IMPORTAÇÃO DINÂMICA: O "+esm" no final é vital para não quebrar o script no celular [1]
-                const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm");
-                
+                const { pipeline, env } = await import(
+                    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm"
+                );
+
                 env.allowLocalModels = false;
+
+                // Cache no IndexedDB: na 2ª execução o modelo já está salvo localmente
+                env.useBrowserCache = true;
+
                 const modelName = "HuggingFaceTB/SmolLM2-135M-Instruct";
-                
-                statusText.innerText = "Iniciando motor ONNX Runtime Web...";
+
+                setProgress(1, "Iniciando motor ONNX Runtime Web...");
+
+                // Mapa de arquivos já baixados para calcular progresso global
+                const fileProgress = {};
 
                 const generator = await pipeline("text-generation", modelName, {
                     device: deviceType,
                     dtype: "q4",
                     progress_callback: (data) => {
-                        if (['downloading', 'progress'].includes(data.status)) {
-                            const prog = Math.round(data.progress? data.progress : 0);
-                            progressBar.style.width = `${prog}%`;
-                            progressPercent.innerText = `${prog}%`;
-                            
-                            const fileName = data.file? data.file : "arquivos...";
-                            statusText.innerText = `Baixando: ${fileName}`;
-                        } else if (data.status === 'ready') {
-                            progressBar.style.width = `100%`;
-                            progressPercent.innerText = `100%`;
-                            statusText.innerText = "Modelo montado! Preparando chat...";
+                        const file = data.file ?? "modelo";
+
+                        if (data.status === "initiate") {
+                            // Arquivo começou a ser preparado
+                            fileProgress[file] = 0;
+                            const label = `Iniciando: ${file}`;
+                            setProgress(calcGlobalProgress(), label);
+
+                        } else if (data.status === "download") {
+                            fileProgress[file] = 0;
+                            setProgress(calcGlobalProgress(), `Baixando: ${file}`);
+
+                        } else if (data.status === "progress") {
+                            fileProgress[file] = data.progress ?? 0;
+                            const global = calcGlobalProgress();
+                            setProgress(global, `Baixando: ${file} (${Math.round(data.progress ?? 0)}%)`);
+
+                        } else if (data.status === "done") {
+                            fileProgress[file] = 100;
+                            setProgress(calcGlobalProgress(), `✔ Concluído: ${file}`);
+
+                        } else if (data.status === "ready") {
+                            // Modelo totalmente montado — este é o passo que "travava" antes
+                            setProgress(100, "✅ Modelo pronto! Gerando resposta...");
                         }
                     }
                 });
 
-                chatBox.classList.remove('hidden');
-                output.innerText = "IA pensando... (O primeiro prompt demora uns segundos a mais)";
+                // ── Prompt de teste ────────────────────────────────────────
+                // FIX: array de mensagens estava vazio/ausente no original
+                const messages = [
+                    { role: "system", content: "You are a helpful assistant. Reply concisely." },
+                    { role: "user",   content: "What is 2 + 2? Answer in one sentence." }
+                ];
 
-                const messages =;
-                
+                chatBox.classList.remove('hidden');
+                output.innerText = "⏳ IA pensando... (primeiros tokens podem demorar um pouco)";
+
                 const response = await generator(messages, {
-                    max_new_tokens: 50,
+                    max_new_tokens: 60,
                     temperature: 0.1,
                     do_sample: false
                 });
 
-                // Tenta extrair a resposta de forma segura
+                // ── Extração segura da resposta ────────────────────────────
+                // FIX: a resposta vem como response[0].generated_text (array de msgs)
                 let finalResposta = "";
-                if (Array.isArray(response) && response.generated_text) {
-                    finalResposta = response.generated_text.at(-1).content;
-                } else {
-                    finalResposta = JSON.stringify(response);
+                try {
+                    const generated = response?.[0]?.generated_text;
+                    if (Array.isArray(generated)) {
+                        // Formato chat: pega o último item com role "assistant"
+                        const assistantMsg = [...generated].reverse()
+                            .find(m => m.role === "assistant");
+                        finalResposta = assistantMsg?.content ?? JSON.stringify(generated);
+                    } else if (typeof generated === "string") {
+                        finalResposta = generated;
+                    } else {
+                        finalResposta = JSON.stringify(response, null, 2);
+                    }
+                } catch {
+                    finalResposta = JSON.stringify(response, null, 2);
                 }
-                
-                output.innerText = finalResposta;
+
+                output.innerText = "🤖 " + finalResposta;
 
             } catch (err) {
                 console.error(err);
-                output.innerText = "Erro ao executar IA: " + err.message;
+                output.innerText = "❌ Erro: " + err.message;
+                chatBox.classList.remove('hidden');
             } finally {
                 startBtn.disabled = false;
                 startBtn.innerText = "Testar Novamente";
+                progressBox.classList.add('hidden');
             }
         };
+
+        // Calcula média do progresso de todos os arquivos conhecidos
+        function calcGlobalProgress() {
+            // fileProgress é capturado por closure acima
+            const values = Object.values(fileProgress ?? {});
+            if (!values.length) return 1;
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            // Limita a 99% até o status "ready" confirmar
+            return Math.min(Math.round(avg), 99);
+        }
     </script>
 </body>
 </html>
