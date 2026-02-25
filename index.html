@@ -2,181 +2,625 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LibertyChat - Teste Offline Final</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LibertyChat 🗽</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --surface2: #1a2236;
+            --border: #1e2d45;
+            --accent: #3b82f6;
+            --accent2: #60a5fa;
+            --text: #e2e8f0;
+            --muted: #4b5e7a;
+            --user-bubble: #1d3557;
+            --ai-bubble: #162032;
+            --green: #22c55e;
+            --yellow: #eab308;
+            --red: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        header {
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .header-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--accent2);
+            letter-spacing: -0.5px;
+        }
+
+        #engine-badge {
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        /* ── Loading overlay ── */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: var(--bg);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px;
+            gap: 24px;
+            transition: opacity 0.4s ease;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .logo-big {
+            font-size: 48px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .loading-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent2);
+        }
+
+        .loading-subtitle {
+            font-size: 13px;
+            color: var(--muted);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        .progress-wrap {
+            width: 100%;
+            max-width: 320px;
+        }
+
+        .progress-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            font-family: 'Space Mono', monospace;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .progress-track {
+            width: 100%;
+            height: 4px;
+            background: var(--surface2);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent2));
+            border-radius: 99px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+
+        .progress-label {
+            margin-top: 8px;
+            font-size: 10px;
+            color: var(--muted);
+            font-style: italic;
+            min-height: 14px;
+        }
+
+        #start-btn {
+            margin-top: 8px;
+            padding: 14px 32px;
+            background: var(--accent);
+            color: #fff;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 320px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #start-btn:active { transform: scale(0.98); }
+        #start-btn:disabled {
+            background: var(--surface2);
+            color: var(--muted);
+            cursor: not-allowed;
+        }
+
+        /* ── Messages ── */
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            scroll-behavior: smooth;
+        }
+
+        #messages::-webkit-scrollbar { width: 4px; }
+        #messages::-webkit-scrollbar-track { background: transparent; }
+        #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+        .msg-row {
+            display: flex;
+            gap: 10px;
+            animation: slideIn 0.25s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .msg-row.user { flex-direction: row-reverse; }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .avatar.ai  { background: var(--surface2); border: 1px solid var(--border); }
+        .avatar.usr { background: var(--user-bubble); border: 1px solid #2a4a7a; }
+
+        .bubble {
+            max-width: 78%;
+            padding: 12px 15px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .bubble.ai  {
+            background: var(--ai-bubble);
+            border: 1px solid var(--border);
+            border-top-left-radius: 4px;
+            color: var(--text);
+        }
+
+        .bubble.user {
+            background: var(--user-bubble);
+            border: 1px solid #2a4a7a;
+            border-top-right-radius: 4px;
+            color: #bfdbfe;
+        }
+
+        /* typing dots */
+        .typing-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            background: var(--muted);
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: blink 1.2s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0.2; }
+            40% { opacity: 1; }
+        }
+
+        /* empty state */
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--muted);
+            text-align: center;
+            font-size: 13px;
+            padding: 40px 20px;
+        }
+
+        .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+
+        /* ── Input bar ── */
+        #input-bar {
+            flex-shrink: 0;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+            padding: 12px 16px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+        }
+
+        #user-input {
+            flex: 1;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            resize: none;
+            max-height: 120px;
+            line-height: 1.5;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        #user-input:focus { border-color: var(--accent); }
+        #user-input::placeholder { color: var(--muted); }
+
+        #send-btn {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            background: var(--accent);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        #send-btn:active { transform: scale(0.93); }
+        #send-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+
+        /* ── Suggestions ── */
+        .suggestions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            padding: 0 16px 10px;
+            flex-shrink: 0;
+        }
+
+        .suggestion-chip {
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            color: var(--muted);
+            font-size: 12px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+
+        .suggestion-chip:hover, .suggestion-chip:active {
+            border-color: var(--accent);
+            color: var(--accent2);
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col items-center justify-center p-6">
+<body>
 
-    <div class="max-w-md w-full bg-slate-800 rounded-2xl p-8 shadow-2xl border border-slate-700">
-        <h1 class="text-2xl font-bold mb-4 text-blue-400 text-center">LibertyChat 🗽</h1>
-        <p class="text-sm text-slate-400 mb-6 text-center">Teste de IA Offline (SmolLM2 135M)</p>
+<!-- ══ LOADING SCREEN ══ -->
+<div id="loading-screen">
+    <div class="logo-big">🗽</div>
+    <div class="loading-title">LibertyChat</div>
+    <div class="loading-subtitle">IA 100% offline no seu dispositivo.<br>SmolLM2 135M · WASM · sem servidor.</div>
 
-        <div id="status-container" class="space-y-4">
-            <div class="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
-                <span>Motor Gráfico:</span>
-                <span id="webgpu-status" class="font-bold text-slate-400">Verificando...</span>
-            </div>
-
-            <div id="progress-box" class="hidden">
-                <div class="flex justify-between text-xs mb-1">
-                    <span>Baixando/Carregando IA...</span>
-                    <span id="progress-percent">0%</span>
-                </div>
-                <div class="w-full bg-slate-700 rounded-full h-2">
-                    <div id="progress-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                </div>
-                <p id="status-text" class="text-[10px] mt-2 text-slate-500 italic"></p>
-            </div>
-
-            <button id="start-btn" class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg">
-                Iniciar Teste de IA
-            </button>
+    <div class="progress-wrap" id="progress-wrap" style="display:none">
+        <div class="progress-top">
+            <span>Carregando modelo...</span>
+            <span id="prog-pct">0%</span>
         </div>
-
-        <div id="chat-box" class="mt-6 hidden">
-            <div id="output" class="text-sm bg-slate-900 p-4 rounded-lg border border-slate-700 min-h-[100px] whitespace-pre-wrap text-slate-300"></div>
+        <div class="progress-track">
+            <div class="progress-fill" id="prog-bar"></div>
         </div>
+        <div class="progress-label" id="prog-label"></div>
     </div>
 
-    <script type="module">
-        const webgpuStatus    = document.getElementById('webgpu-status');
-        const startBtn        = document.getElementById('start-btn');
-        const progressBox     = document.getElementById('progress-box');
-        const progressBar     = document.getElementById('progress-bar');
-        const progressPercent = document.getElementById('progress-percent');
-        const statusText      = document.getElementById('status-text');
-        const output          = document.getElementById('output');
-        const chatBox         = document.getElementById('chat-box');
+    <button id="start-btn">⚡ Carregar IA</button>
+    <div style="font-size:11px;color:var(--muted);text-align:center;max-width:280px;">
+        Primeira vez: ~80 MB de download.<br>Depois fica salvo no cache do navegador.
+    </div>
+</div>
 
-        // ── FIX: fileProgress no escopo do módulo para calcGlobalProgress acessar ──
-        let fileProgress = {};
+<!-- ══ CHAT ══ -->
+<header>
+    <div class="header-title">🗽 LibertyChat</div>
+    <div id="engine-badge">WASM · offline</div>
+</header>
 
-        // ── Detecta plataforma ───────────────────────────────────────────────────
-        const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        const hasWebGPU = !!navigator.gpu && !isMobile;
+<div id="messages">
+    <div class="empty-state" id="empty-state">
+        <div class="icon">💬</div>
+        <strong style="color:var(--text)">IA pronta!</strong>
+        Faça uma pergunta ou escolha uma sugestão abaixo.
+    </div>
+</div>
 
-        if (hasWebGPU) {
-            webgpuStatus.innerText = "✅ WebGPU (GPU)";
-            webgpuStatus.className = "font-bold text-green-400";
-        } else if (navigator.gpu && isMobile) {
-            webgpuStatus.innerText = "⚠️ WASM (GPU instável no mobile)";
-            webgpuStatus.className = "font-bold text-yellow-400";
-        } else {
-            webgpuStatus.innerText = "⚠️ WASM (CPU)";
-            webgpuStatus.className = "font-bold text-yellow-400";
-        }
+<div class="suggestions" id="suggestions">
+    <div class="suggestion-chip">O que é IA?</div>
+    <div class="suggestion-chip">Escreva um poema curto</div>
+    <div class="suggestion-chip">Piada engraçada</div>
+    <div class="suggestion-chip">Dica de produtividade</div>
+</div>
 
-        const deviceType = hasWebGPU ? "webgpu" : "wasm";
+<div id="input-bar">
+    <textarea id="user-input" rows="1" placeholder="Digite sua mensagem..." disabled></textarea>
+    <button id="send-btn" disabled>➤</button>
+</div>
 
-        // ── Helpers ──────────────────────────────────────────────────────────────
-        function setProgress(pct, label) {
-            progressBar.style.width = `${pct}%`;
-            progressPercent.innerText = `${pct}%`;
-            statusText.innerText = label;
-        }
+<script type="module">
+    // ── Elementos ────────────────────────────────────────────────────────────
+    const loadingScreen = document.getElementById('loading-screen');
+    const startBtn      = document.getElementById('start-btn');
+    const progWrap      = document.getElementById('progress-wrap');
+    const progBar       = document.getElementById('prog-bar');
+    const progPct       = document.getElementById('prog-pct');
+    const progLabel     = document.getElementById('prog-label');
+    const engineBadge   = document.getElementById('engine-badge');
+    const messagesEl    = document.getElementById('messages');
+    const emptyState    = document.getElementById('empty-state');
+    const suggestionsEl = document.getElementById('suggestions');
+    const userInput     = document.getElementById('user-input');
+    const sendBtn       = document.getElementById('send-btn');
 
-        // FIX: função agora acessa fileProgress do escopo correto (módulo)
-        function calcGlobalProgress() {
-            const values = Object.values(fileProgress);
-            if (!values.length) return 1;
-            const avg = values.reduce((a, b) => a + b, 0) / values.length;
-            return Math.min(Math.round(avg), 99);
-        }
+    // ── Estado ───────────────────────────────────────────────────────────────
+    let generator   = null;
+    let isGenerating = false;
+    let fileProgress = {};
+    // Histórico mantido para contexto multi-turno
+    const history = [
+        { role: "system", content: "You are LibertyChat, a helpful and friendly AI assistant. Always reply in the same language the user writes in. Keep responses concise but complete." }
+    ];
 
-        // ── Clique no botão ──────────────────────────────────────────────────────
-        startBtn.onclick = async () => {
-            startBtn.disabled = true;
-            fileProgress = {}; // reseta a cada tentativa
-            progressBox.classList.remove('hidden');
-            chatBox.classList.add('hidden');
-            setProgress(0, "Conectando à biblioteca Transformers.js...");
+    // ── Motor ────────────────────────────────────────────────────────────────
+    const isMobile  = /Android|iPhone|iPad/i.test(navigator.userAgent);
+    const hasWebGPU = !!navigator.gpu && !isMobile;
+    const deviceType = hasWebGPU ? "webgpu" : "wasm";
 
-            try {
-                const { pipeline, env } = await import(
-                    "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm"
-                );
+    engineBadge.textContent = hasWebGPU ? "WebGPU · offline" : "WASM · offline";
 
-                env.allowLocalModels = false;
-                env.useBrowserCache  = true; // cache no IndexedDB: 2ª vez é instantâneo
+    // ── Progresso ────────────────────────────────────────────────────────────
+    function calcProgress() {
+        const vals = Object.values(fileProgress);
+        if (!vals.length) return 1;
+        return Math.min(Math.round(vals.reduce((a, b) => a + b, 0) / vals.length), 99);
+    }
 
-                const modelName = "HuggingFaceTB/SmolLM2-135M-Instruct";
+    function setProgress(pct, label) {
+        progBar.style.width = `${pct}%`;
+        progPct.textContent  = `${pct}%`;
+        progLabel.textContent = label;
+    }
 
-                setProgress(1, "Iniciando motor ONNX Runtime Web...");
+    // ── Carregar modelo ──────────────────────────────────────────────────────
+    startBtn.onclick = async () => {
+        startBtn.disabled = true;
+        progWrap.style.display = 'block';
+        fileProgress = {};
+        setProgress(0, "Conectando à biblioteca...");
 
-                const generator = await pipeline("text-generation", modelName, {
-                    device: deviceType,
-                    dtype: "q4",
-                    progress_callback: (data) => {
-                        const file = data.file ?? "modelo";
+        try {
+            const { pipeline, env } = await import(
+                "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0.0/+esm"
+            );
 
-                        if (data.status === "initiate") {
-                            fileProgress[file] = 0;
-                            setProgress(calcGlobalProgress(), `Iniciando: ${file}`);
+            env.allowLocalModels = false;
+            env.useBrowserCache  = true;
 
-                        } else if (data.status === "download") {
-                            fileProgress[file] = 0;
-                            setProgress(calcGlobalProgress(), `Baixando: ${file}`);
+            setProgress(1, "Iniciando ONNX Runtime...");
 
-                        } else if (data.status === "progress") {
-                            fileProgress[file] = data.progress ?? 0;
-                            const pct = Math.round(data.progress ?? 0);
-                            setProgress(calcGlobalProgress(), `Baixando: ${file} (${pct}%)`);
-
-                        } else if (data.status === "done") {
-                            fileProgress[file] = 100;
-                            setProgress(calcGlobalProgress(), `✔ Concluído: ${file}`);
-
-                        } else if (data.status === "ready") {
-                            setProgress(100, "✅ Modelo pronto! Gerando resposta...");
-                        }
+            generator = await pipeline("text-generation", "HuggingFaceTB/SmolLM2-135M-Instruct", {
+                device: deviceType,
+                dtype:  "q4",
+                progress_callback: (data) => {
+                    const file = data.file ?? "modelo";
+                    if (data.status === "initiate" || data.status === "download") {
+                        fileProgress[file] = 0;
+                        setProgress(calcProgress(), `Iniciando: ${file}`);
+                    } else if (data.status === "progress") {
+                        fileProgress[file] = data.progress ?? 0;
+                        setProgress(calcProgress(), `Baixando: ${file} (${Math.round(data.progress ?? 0)}%)`);
+                    } else if (data.status === "done") {
+                        fileProgress[file] = 100;
+                        setProgress(calcProgress(), `✔ ${file}`);
+                    } else if (data.status === "ready") {
+                        setProgress(100, "✅ Modelo pronto!");
                     }
-                });
-
-                // ── Prompt de teste ──────────────────────────────────────────────
-                const messages = [
-                    { role: "system", content: "You are a helpful assistant. Reply concisely." },
-                    { role: "user",   content: "What is 2 + 2? Answer in one sentence." }
-                ];
-
-                chatBox.classList.remove('hidden');
-                output.innerText = "⏳ IA pensando...";
-
-                const response = await generator(messages, {
-                    max_new_tokens: 60,
-                    temperature: 0.1,
-                    do_sample: false
-                });
-
-                // ── Extração segura da resposta ──────────────────────────────────
-                let finalResposta = "";
-                try {
-                    const generated = response?.[0]?.generated_text;
-                    if (Array.isArray(generated)) {
-                        const assistantMsg = [...generated].reverse()
-                            .find(m => m.role === "assistant");
-                        finalResposta = assistantMsg?.content ?? JSON.stringify(generated);
-                    } else if (typeof generated === "string") {
-                        finalResposta = generated;
-                    } else {
-                        finalResposta = JSON.stringify(response, null, 2);
-                    }
-                } catch {
-                    finalResposta = JSON.stringify(response, null, 2);
                 }
+            });
 
-                output.innerText = "🤖 " + finalResposta;
+            // Oculta loading, mostra chat
+            loadingScreen.classList.add('hidden');
+            setTimeout(() => loadingScreen.style.display = 'none', 400);
+            userInput.disabled = false;
+            sendBtn.disabled   = false;
+            userInput.focus();
 
-            } catch (err) {
-                console.error(err);
-                output.innerText = "❌ Erro: " + err.message;
-                chatBox.classList.remove('hidden');
-            } finally {
-                startBtn.disabled = false;
-                startBtn.innerText = "Testar Novamente";
-                progressBox.classList.add('hidden');
+        } catch (err) {
+            console.error(err);
+            progLabel.textContent = "❌ Erro: " + err.message;
+            startBtn.disabled = false;
+            startBtn.textContent = "Tentar novamente";
+        }
+    };
+
+    // ── Auto-resize do textarea ──────────────────────────────────────────────
+    userInput.addEventListener('input', () => {
+        userInput.style.height = 'auto';
+        userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+    });
+
+    // ── Send com Enter (Shift+Enter = quebra linha) ──────────────────────────
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    });
+
+    sendBtn.onclick = handleSend;
+
+    // ── Sugestões ────────────────────────────────────────────────────────────
+    document.querySelectorAll('.suggestion-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            if (!generator || isGenerating) return;
+            userInput.value = chip.textContent;
+            handleSend();
+        });
+    });
+
+    // ── Renderização de mensagens ─────────────────────────────────────────────
+    function addMessage(role, content) {
+        emptyState?.remove();
+        suggestionsEl.style.display = 'none';
+
+        const row = document.createElement('div');
+        row.className = `msg-row ${role === 'user' ? 'user' : 'ai'}`;
+
+        const avatar = document.createElement('div');
+        avatar.className = `avatar ${role === 'user' ? 'usr' : 'ai'}`;
+        avatar.textContent = role === 'user' ? '👤' : '🤖';
+
+        const bubble = document.createElement('div');
+        bubble.className = `bubble ${role === 'user' ? 'user' : 'ai'}`;
+        bubble.textContent = content;
+
+        row.append(avatar, bubble);
+        messagesEl.appendChild(row);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+
+        return bubble; // retorna para poder atualizar (streaming futuro)
+    }
+
+    function addTypingIndicator() {
+        emptyState?.remove();
+        const row = document.createElement('div');
+        row.className = 'msg-row ai';
+        row.id = 'typing-row';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar ai';
+        avatar.textContent = '🤖';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'bubble ai';
+        bubble.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+
+        row.append(avatar, bubble);
+        messagesEl.appendChild(row);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function removeTypingIndicator() {
+        document.getElementById('typing-row')?.remove();
+    }
+
+    // ── Core: enviar mensagem ────────────────────────────────────────────────
+    async function handleSend() {
+        if (!generator || isGenerating) return;
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        isGenerating = true;
+        userInput.value = '';
+        userInput.style.height = 'auto';
+        sendBtn.disabled  = true;
+        userInput.disabled = true;
+
+        // Adiciona ao histórico e UI
+        history.push({ role: "user", content: text });
+        addMessage('user', text);
+        addTypingIndicator();
+
+        try {
+            const response = await generator(history, {
+                max_new_tokens: 200,
+                temperature: 0.7,
+                do_sample: true,
+                repetition_penalty: 1.1
+            });
+
+            removeTypingIndicator();
+
+            // Extrai resposta do assistente
+            let reply = "";
+            try {
+                const generated = response?.[0]?.generated_text;
+                if (Array.isArray(generated)) {
+                    const last = [...generated].reverse().find(m => m.role === "assistant");
+                    reply = last?.content ?? JSON.stringify(generated);
+                } else {
+                    reply = String(generated ?? JSON.stringify(response));
+                }
+            } catch {
+                reply = JSON.stringify(response, null, 2);
             }
-        };
-    </script>
+
+            // Adiciona ao histórico para contexto no próximo turno
+            history.push({ role: "assistant", content: reply });
+            addMessage('assistant', reply);
+
+        } catch (err) {
+            removeTypingIndicator();
+            addMessage('assistant', "❌ Erro ao gerar resposta: " + err.message);
+            console.error(err);
+        } finally {
+            isGenerating = false;
+            sendBtn.disabled   = false;
+            userInput.disabled = false;
+            userInput.focus();
+        }
+    }
+</script>
 </body>
 </html>
